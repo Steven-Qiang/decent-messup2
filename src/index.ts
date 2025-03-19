@@ -27,9 +27,20 @@ export default async function messUp(code: string, options: Options = {}) {
     },
   } = options;
 
-  const _code = await transformCode(code);
-  if (!_code) throw new Error('transform code error');
-  const ast = parse(_code, parserOptions);
+  let _code: string | null | undefined;
+  try {
+    _code = await transformCode(code);
+    if (!_code) throw new Error('Transformed code is empty or undefined.');
+  } catch (error: any) {
+    throw new Error(`Error during code transformation: ${error.message}`);
+  }
+
+  let ast: t.Node;
+  try {
+    ast = parse(_code, parserOptions);
+  } catch (error: any) {
+    throw new Error(`Error parsing code: ${error.message}`);
+  }
 
   const alphabet = 'abcdefghijklmnopqrstuvwxyz';
   const declareKeyword = 'var';
@@ -39,38 +50,44 @@ export default async function messUp(code: string, options: Options = {}) {
     value: string;
   }[] = [];
 
-  traverse(ast, {
-    MemberExpression: {
-      enter(path) {
-        if (t.isIdentifier(path.node.property) && !path.node.computed) {
-          path.set('computed', true);
-          path.get('property').replaceWith(t.stringLiteral(path.node.property.name));
-        } else if (t.isMemberExpression(path.node) && path.node.property && path.node.property.type === 'StringLiteral') {
-        }
+  try {
+    traverse(ast, {
+      MemberExpression: {
+        enter(path) {
+          if (t.isIdentifier(path.node.property) && !path.node.computed) {
+            path.set('computed', true);
+            path.get('property').replaceWith(t.stringLiteral(path.node.property.name));
+          } else if (t.isMemberExpression(path.node) && path.node.property && path.node.property.type === 'StringLiteral') {
+            // Handle specific case if needed
+          }
+        },
       },
-    },
-  });
+    });
 
-  traverse(ast, {
-    ObjectProperty: {
-      enter(path) {
-        if (path.node.computed) {
-          return;
-        }
-        path.node.computed = true;
-        const key = path.node.key;
-        if (key.type === 'StringLiteral') {
-        } else if (key.type === 'Identifier') {
-          // @ts-ignore
-          key.type = 'StringLiteral';
-          // @ts-ignore
-          key.value = key.name;
-        }
+    traverse(ast, {
+      ObjectProperty: {
+        enter(path) {
+          if (path.node.computed) {
+            return;
+          }
+          path.node.computed = true;
+          const key = path.node.key;
+          if (key.type === 'StringLiteral') {
+            // Handle specific case if needed
+          } else if (key.type === 'Identifier') {
+            // @ts-ignore
+            key.type = 'StringLiteral';
+            // @ts-ignore
+            key.value = key.name;
+          }
+        },
       },
-    },
-  });
+    });
+  } catch (error: any) {
+    throw new Error(`Error traversing AST (Step 1): ${error.message}`);
+  }
 
-  //step2 get charset
+  // Step 2: Get charset
   const charset: { [key: string]: boolean } = {};
 
   function addString(str: string) {
@@ -78,40 +95,53 @@ export default async function messUp(code: string, options: Options = {}) {
       charset[char] = true;
     });
   }
-  traverse(ast, {
-    StringLiteral(path) {
-      addString(path.node.value);
-    },
-  });
+
+  try {
+    traverse(ast, {
+      StringLiteral(path) {
+        addString(path.node.value);
+      },
+    });
+  } catch (error: any) {
+    throw new Error(`Error traversing AST (Step 2): ${error.message}`);
+  }
+
   let charsetArray: string[] = [];
   for (const char in charset) {
     charsetArray.push(char);
   }
+
   for (let i = 0; i < stringVariableCounts; i++) {
     headerArray.push({
       value: shuffle(charsetArray).join(''),
     });
   }
-  traverse(ast, {
-    Program(path) {
-      let templateCode = '';
-      const decentMap: { [key: string]: string } = {};
-      headerArray.forEach(function (header, index) {
-        let code = header.value;
-        code = code.replace(/\\/g, '\\\\');
-        code = code.replace(/\n/g, '\\n');
-        code = code.replace(/'/g, "\\'");
-        const char = alphabet[index % alphabet.length];
-        const name = path.scope.generateUidIdentifier(char).name;
-        header.name = name;
-        decentMap[name] = name;
-        templateCode += `${declareKeyword} ${name}='${code}';`;
-      });
-      path.unshiftContainer('body', template(templateCode)({}));
-      (path.node as any).decentMap = decentMap;
-    },
-  });
-  //step3 add declaration
+
+  try {
+    traverse(ast, {
+      Program(path) {
+        let templateCode = '';
+        const decentMap: { [key: string]: string } = {};
+        headerArray.forEach(function (header, index) {
+          let code = header.value;
+          code = code.replace(/\\/g, '\\\\');
+          code = code.replace(/\n/g, '\\n');
+          code = code.replace(/'/g, "\\'");
+          const char = alphabet[index % alphabet.length];
+          const name = path.scope.generateUidIdentifier(char).name;
+          header.name = name;
+          decentMap[name] = name;
+          templateCode += `${declareKeyword} ${name}='${code}';`;
+        });
+        path.unshiftContainer('body', template(templateCode)({}));
+        (path.node as any).decentMap = decentMap;
+      },
+    });
+  } catch (error: any) {
+    throw new Error(`Error traversing AST (Step 3): ${error.message}`);
+  }
+
+  // Step 3: Add declaration
   const functionDeclarationAndExpression = (path: NodePath<t.FunctionDeclaration> | NodePath<t.FunctionExpression>) => {
     let templateCode = '';
     shuffle(headerArray);
@@ -126,61 +156,73 @@ export default async function messUp(code: string, options: Options = {}) {
     (path.node as any).decentMap = decentMap;
   };
 
-  traverse(ast, {
-    FunctionDeclaration: functionDeclarationAndExpression,
-    FunctionExpression: functionDeclarationAndExpression,
-  });
+  try {
+    traverse(ast, {
+      FunctionDeclaration: functionDeclarationAndExpression,
+      FunctionExpression: functionDeclarationAndExpression,
+    });
+  } catch (error: any) {
+    throw new Error(`Error traversing AST (Step 4): ${error.message}`);
+  }
 
-  //step4 handle string
-
+  // Step 4: Handle string
   let skipCount = stringVariableCounts;
-  traverse(ast, {
-    StringLiteral(path) {
-      if (path.parent.type === 'ObjectProperty' && path.key === 'key') {
-        return;
-      }
-      if (path.parent.type === 'ImportDeclaration') {
-        //not in import
-        return;
-      }
-      if (path.parent.type === 'CallExpression' && (path.parent.callee as any).name === 'require') {
-        //not in require
-        return;
-      }
-      const parent = path.findParent((path) => path.isFunctionDeclaration() || path.isProgram());
-      const text = path.node.value;
 
-      if (!text) {
-        return;
-      }
+  try {
+    traverse(ast, {
+      StringLiteral(path) {
+        if (path.parent.type === 'ObjectProperty' && path.key === 'key') {
+          return;
+        }
+        if (path.parent.type === 'ImportDeclaration') {
+          // Not in import
+          return;
+        }
+        if (path.parent.type === 'CallExpression' && (path.parent.callee as any).name === 'require') {
+          // Not in require
+          return;
+        }
+        const parent = path.findParent((path) => path.isFunctionDeclaration() || path.isProgram());
+        const text = path.node.value;
 
-      if (skipCount) {
-        skipCount--;
-        return;
-      }
+        if (!text) {
+          return;
+        }
 
-      const decentMap: {
-        [name: string]: string;
-      } = (parent!.node as any).decentMap;
+        if (skipCount) {
+          skipCount--;
+          return;
+        }
 
-      const arr = text.split('').map(function (char) {
-        const randomIndex = getRandomIndex(stringVariableCounts);
-        let name = headerArray[randomIndex].name;
-        name = decentMap[name];
-        let index = headerArray[randomIndex].value.indexOf(char);
-        return `${name}[${index}]`;
-      });
-      let t: t.Statement | t.Statement[] = template('(' + arr.join('+') + ')')({});
-      if (Array.isArray(t)) {
-        t = t[0];
-      }
-      path.replaceWith(t);
-    },
-  });
+        const decentMap: {
+          [name: string]: string;
+        } = (parent!.node as any).decentMap;
+
+        const arr = text.split('').map(function (char) {
+          const randomIndex = getRandomIndex(stringVariableCounts);
+          let name = headerArray[randomIndex].name;
+          name = decentMap[name];
+          let index = headerArray[randomIndex].value.indexOf(char);
+          return `${name}[${index}]`;
+        });
+        let t: t.Statement | t.Statement[] = template('(' + arr.join('+') + ')')({});
+        if (Array.isArray(t)) {
+          t = t[0];
+        }
+        path.replaceWith(t);
+      },
+    });
+  } catch (error: any) {
+    throw new Error(`Error traversing AST (Step 5): ${error.message}`);
+  }
 
   let generatedCode = generate(ast, generatorOptions, code).code;
   if (minifyOptions) {
-    generatedCode = (await minify(generatedCode, minifyOptions)).code!;
+    try {
+      generatedCode = (await minify(generatedCode, minifyOptions)).code!;
+    } catch (error: any) {
+      throw new Error(`Error minifying generated code: ${error.message}`);
+    }
   }
   return generatedCode;
 }

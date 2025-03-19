@@ -20,9 +20,9 @@ export function getRandomIndex(max: number) {
 }
 
 export async function transformCode(code: string) {
-  const result = await transformAsync(code, {
+  const transformedResult = await transformAsync(code, {
     presets: ['@babel/preset-env'],
   });
-  if (!result) return null;
-  return result.code;
+  if (!transformedResult) return null;
+  return transformedResult.code;
 }
