@@ -1,34 +1,37 @@
 {
   "name": "decent-messup",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "description": "Mess up js in a different way.",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/blackmiaool/decent-messup.git"
+    "url": "git+https://github.com/Steven-Qiang/decent-messup.git"
   },
-  "author": "blackmiaool",
+  "author": "blackmiaool, Steven-Qiang",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/blackmiaool/decent-messup/issues"
+    "url": "https://github.com/Steven-Qiang/decent-messup/issues"
   },
-  "homepage": "https://github.com/blackmiaool/decent-messup#readme",
   "dependencies": {
-    "@babel/generator": "^7.4.4",
-    "@babel/parser": "^7.4.4",
-    "@babel/template": "^7.4.4",
-    "@babel/traverse": "^7.4.4",
-    "@babel/types": "^7.4.4",
-    "babylon": "^6.17.0"
+    "@babel/core": "^7.26.10",
+    "@babel/generator": "^7.26.10",
+    "@babel/parser": "^7.26.10",
+    "@babel/template": "^7.26.9",
+    "@babel/traverse": "^7.26.10",
+    "@babel/types": "^7.26.10",
+    "terser": "^5.39.0"
   },
   "devDependencies": {
-    "babel-core": "^6.25.0",
-    "babel-loader": "^7.0.0",
-    "babel-preset-latest": "^6.24.1",
-    "babel-preset-stage-0": "^6.24.1",
-    "webpack": "^2.6.1"
+    "@babel/preset-env": "^7.26.9",
+    "@types/babel__core": "^7.20.5",
+    "@types/babel__generator": "^7.6.8",
+    "@types/babel__template": "^7.4.4",
+    "@types/babel__traverse": "^7.20.6",
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.2",
+    "webpack": "^5.98.0"
   }
 }
